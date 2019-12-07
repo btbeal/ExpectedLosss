@@ -1,0 +1,12 @@
+name: ExpectedLoss_Shiny
+title: ExpectedLoss_Shiny
+username:
+account: brennanbeal
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 1572813
+bundleId: 2647959
+url: https://brennanbeal.shinyapps.io/ExpectedLoss_Shiny/
+when: 1575682420.29259
+asMultiple: FALSE
+asStatic: FALSE

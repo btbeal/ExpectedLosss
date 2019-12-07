@@ -1,0 +1,383 @@
+---
+title: "Expected Loss"
+author: "Brennan T. Beal, PharmD"
+output: 
+  html_document:
+      theme: simplex
+      toc: TRUE
+      toc_float: TRUE
+      code_folding: hide
+      includes:
+        before_body: header.html
+        after_body: footer.Rhtml
+---
+
+
+<!--html_preserve-->
+<a href="https://github.com/btbeal" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#FD6C6C; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>
+<!--/html_preserve-->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(kableExtra)
+library(shiny)
+library(shinyWidgets)
+library(shinydashboard)
+library(formattable)
+library(ggthemes)
+library(tidyverse)
+library(fGarch)
+library(scales)
+library(DT)
+library(plotly)
+
+
+
+# ----------------------------------------------------------------------- #
+#   Create Artificial Distributions
+# ----------------------------------------------------------------------- #
+set.seed(667)     # Setting seed to reproduce normalized values
+
+l_skew  <- rsnorm(10000, mean = 100, sd = 800, xi = -9)       # Data for left skewed INB
+no_skew <- rsnorm(10000, mean = 1000, sd = 800)               # Data for normally distributed INB
+r_skew  <- rsnorm(10000, mean = 100, sd = 800, xi = 9)        # Data for right skewed INB
+
+
+all_skew <- cbind(l_skew, no_skew, r_skew) %>% as_tibble()   # create tibble from all three vectors
+names(all_skew) <- c("Left", "Normal", "Right")              # name the tibbles
+
+# ----------------------------------------------------------------------- #
+#   Calculating random cost and utility matrices to match distribution
+# ----------------------------------------------------------------------- #
+sim_vec <- paste("Sample: ", 1:10000)                   # creating row identifier (for table purposes)
+drug_A_nmb <- rnorm(10000, mean = 2555322, sd = 300000) # create arbitrary drug_A_nmb for given WTP
+drug_B_nmb <- all_skew + drug_A_nmb                     # matrix of all skews of drug_B_nmb for given WTP
+
+
+nmb_list <- list()
+i <- 1
+for(i in 1:ncol(drug_B_nmb)){
+  df <- cbind.data.frame(sim_vec, drug_A_nmb, drug_B_nmb[,i])
+  names(df) <- c("Sample", "Drug A NMB", "Drug B NMB")
+  
+  nmb_list[[i]] <- df
+}
+
+```
+
+## Reasons for the post
+In the Fall of 2019, while studying at The University of Washington’s CHOICE institute, I had the privilege of attending my first decision modeling workshop led by DARTH (Decision Analysis in R for Technologies in Health). Quick plug: if you ever have the chance to attend one of their [workshops](http://darthworkgroup.com/workshops/), I would *highly* recommend it. They’re a group of researchers who have banded together to form a collaborative group dedicated to open-source, transparent solutions to decision analysis in health.  
+<br>
+
+On the third day of the workshop, they presented an idea known as the “expected loss” curve (ELC) as an addition to the Cost Effectiveness Acceptability Curve (CEAC). After reading their paper on the topic (see [here](https://www.valueinhealthjournal.com/article/S1098-3015(19)30133-0/abstract)), I was really struggling to understand why this wasn’t recommended by all the major CEA guidelines? In fact, almost all of them recommend a CEAC but that only tells some of the story. So why not both?  
+<br>
+
+My own conclusion is that the impetus behind the ELC is not always explicitly clear and, because I am a visual person, I thought visuals may help. I'm first going to start with some simple definitions, then provide a working example of the math, and finally wrap up with an interactive section to let you play around with the different cases and demonstrate with interactive visuals why the <span style="color:indianred">**_ELC is necessary to be a fully informed decision maker._**</span>     
+<br>
+
+## So, what is an Expected Loss Curve?
+### A simplistic example
+Let us suppose that you want to compare two strategies (Strategy A and Strategy B) to see which will be optimal for your company. Your head statistician informs you that Strategy A will be cost-effective 70% of the time and in the 70 times out of 100 that it is cost-effective, you stand to gain \$5 dollars each time or "you lose \$0". She then proceeds to tell you that for every time you are wrong (30% of the time, here) you stand to lose \$100. Your expected loss here would be \$30 (30% x \$100 = \$30). With that in mind, you also calculate the expected loss for Strategy B. Turns out it is only \$7! (\$7 here is arbitrary for the sake of example).
+<br>
+
+So here we have a strategy where _only_ knowing what is most likely to be cost-effective would mislead a decision maker to the incorrect decision (the one with a greater expected loss) and subject their company to unnecessary risks.
+<br>
+
+### Expected Loss vs. Cost-Effectiveness Acceptability
+<span style="color:indianred">**Cost-Effectiveness Acceptability Curves**</span> represent the proportion of samples, derived from a probabilistic sensitivity analysis (PSA), that have the *highest* net monetary benefit (NMB).
+<br>
+
+<span style="color:indianred">**Expected Loss Curves**</span> represent the average financial loss when a sample from the same PSA does *not* have the highest net monetary benefit.
+<br>
+
+These two will work in tandem to tell the decision maker:
+<br> 
+
+  + What strategy is *most likely* to be cost-effective (Cost-Effectiveness Acceptability);
+  + and what the expected financial loss (or risk) is if the chosen strategy turns out *not* to be cost-effective (Expected Loss)
+<br>
+
+### Math
+The core of every PSA analysis is derived from the NMB of each strategy for a given iteration of the PSA:
+<br>
+<br>
+
+$$NMB_{i,d} = (QALY_{i,d})\lambda - Cost_{i,d}$$
+<br>
+<br>
+
+Where *i* represents a given iteration of the PSA, *d* is a given strategy, and $\lambda$ representing the WTP for 1 additional unit of effectiveness.
+<br>
+<br>
+
+Let us consider a <span style="color:indianred">**hypothetical NMB matrix**</span> for “Drug A” and “Drug B”.  
+<br>
+<br>
+
+| PSA Sample |  Drug A NMB   | Drug B NMB |
+|:----------:|:-------------:|:----------:|
+| 1          | $2,771,108 | $2,769,940 |  
+| 2          | $2,957,934 | $2,955,832 |  
+| 3          | $2,996,100 | $3,005,927 |  
+| 4          | $2,913,308 | $2,912,642 | 
+| 5          | $2,396,263 | $2,394,946 | 
+
+<br>
+<br>
+
+From a given NMB matrix (like the one above), one can calculate the optimal strategy at each iteration, or the strategy with highest net benefit as:
+<br>
+<br>
+
+$$NMB_{d^*,i} = argmax_{d,i\in [1,2,... D]}$$  
+<br>
+<br>
+
+Where the strategy with the highest net monetary benefit, $NMB_{d*,i}$, for a given PSA sample, *i*, is the maximum value of the set of $NMB$ values for a given iteration and all given strategies, *D*.
+
+<br>
+<br>
+
+With our maximum values identified for each row, we can calculate the economic loss for each PSA sample and each strategy as:  
+<br>
+<br>
+
+$$L_{d,i} = NMB_{d^*,i} -  NMB_{d,i} | d\in [1,2,... D]$$  
+<br>
+<br>
+
+Where $L_{d,i}$ is the loss for a given strategy at a given iteration of the PSA. If the strategy happens to be the optimal strategy at that iteration, the matrix will take a value of 0 (i.e. the value will be subtracted from itself).
+<br>
+
+Applying this to our mock NMB matrix, we get:  
+<br>
+<br>
+
+
+| PSA Sample |  Drug A Loss   | Drug B Loss |
+|:----------:|:-------------:|:----------:|
+| 1          | $0            | $1,168     |
+| 2          | $0            | $2,102     |
+| 3          | $7,827        | $0         |
+| 4          | $0            | $666       |
+| 5          | $0            | $1,317     |
+
+<br>
+<br>
+Aand then our expected loss for Drug A or Drug B is just the average of all of those losses...  
+<br>
+<br>
+
+$$\overline{EL}_{DrugA} = \frac{1}{N}\sum_{x = i}^{N} Drug A$$  
+<br>
+<br> 
+
+Therefore, our expected losses for each would be:
+<br>
+<br>
+
+| Drug |  Expected Loss  | 
+|:----------:|:-------------:|
+| A          | $1,565        |
+| B          | $1,051        |
+
+
+<br>
+<br>
+And we would conclude that Drug B is optimal at this WTP given that it has a lower expected loss.
+<br>
+<br>
+
+<span style="color:indianred">**The expected loss of a given strategy is simply the average loss of that strategy when it is not the optimal decision. The optimal decision overall is considered to be that with the *lowest* expected loss.**</span>
+<br>
+<br>
+
+## But why does it matter?
+Primarily, many guidelines (including the Second Panel on Cost-Effectiveness in Health and Medicine), recommend that uncertainty in a model should be displayed using a CEAC with the frontier plotted on the same graphic. <span style="color:indianred">**This is still missing half the value of the sensitivity analysis!**</span> This method still tells us nothing about economic *risks* associated with each decision.
+<br>
+
+*But aren't they the same?*
+<br>
+
+Now that we know what the expected loss is, it seems reasonable to assume that the expected loss would just be a reflection of the CEAC – and in most cases that is correct; however, it is crucial to understand that this isn’t always the case. <span style="color:indianred">**_It is not always true that the strategy most likely to be cost effective is, indeed, the optimal decision (that is, the decision with the lowest expected loss)._**</span>
+<br>
+
+Allow me to explain…  
+<br>
+
+Consider the following potential distributions of your incremental net benefit (the difference between Drug B and Drug A at each iteration), or INB.  
+<br>
+<br>
+```{r, fig.align= "center"}
+
+s <- all_skew %>% 
+  gather(key = "Skew", value = "INB")
+
+ggplot(s) +
+  geom_density(aes(x = INB, fill = Skew), alpha = 2/3) +
+  theme_hc() +
+  labs(title = "Distribution of Incremental Net Monetary Benefit",
+       subtitle = "for three hypothetical INB distributions") +
+  scale_x_continuous(labels = dollar_format())
+  
+```
+<br>
+<br> 
+  
+All three hypothetical distributions represent scenarios where the given strategy is not 100% likely to be cost effective (we know this because we can see some of each distribution being < $0, which means that at least one sample of the PSA favors the other strategy). Of course, these distributions could be located anywhere on the x-axis but most often you’ll have something that looks like those pictured above (each strategy has some probability of being cost-effective).  
+<br>
+<br>
+We know that the mean will represent the optimal strategy per our definitions above. We also know that the median of the data above will represent the most probable to be cost effective. So, in the special cases where the mean and median are on opposite sides of the $0 line, we will have a strategy that is most likely to be cost effective for one strategy but have the highest INB for another!  
+<br>
+<br>
+It is in this special case, the CEAC alone will give us misleading results and lead a decision maker to make a suboptimal decision. *That* is why it matters and *that* is why one should provide both to gather the most comprehensive information available.  
+<br>
+<br>
+Let’s check out the results from the above distributions:
+<br>
+<br>
+
+```{r}
+
+el_matrix <- ce_matrix <- matrix(0,   # create matrix for storing proportion cost effectiveness and expected loss
+                                 nrow = length(nmb_list),
+                                 ncol = 2,
+                                 dimnames = list(c("Left Skewed Data", "Normally Distributed Data", "Right Skewed Data"),
+                                                 c("DrugA", "DrugB")))
+
+i <- 1
+for(i in 1:length(nmb_list)){
+  nmb <- nmb_list[[i]][,-1]
+  max_nmb <- max.col(nmb)                       # selecting column with highest nmb in each iteration
+  prop_ce <- prop.table(table(max_nmb))                   # proportion in each column
+  ce_matrix[i, as.numeric(names(prop_ce))] <- prop_ce  # filling in cost effective matrix created above with prop ce
+  # ---- note regarding frontier: this is important alongside proportion ce
+  # ---- because it gives an idea of data distribution
+  # ---- in theory, one could be most cost effective on average, but have lower mean nmb
+  
+  loss_matrix <- nmb[cbind(1:10000,max_nmb)] - nmb  # calculating loss of sub-optimal strategy in each iteration                                       
+  
+  el_matrix[i,] <- colMeans(loss_matrix)              # average loss by strat for each wtp threshold
+}
+
+f <- rbind.data.frame(el_matrix, ce_matrix) %>% rownames_to_column(var = "Distribution")
+html_table <- f %>% 
+                mutate(
+                    Val = 1:6,
+                    DrugA = ifelse(DrugA<DrugB & Val < 4 | DrugA>DrugB & Val > 3,
+                                  cell_spec(DrugA, "html", color = "green"),
+                                  cell_spec(DrugA, "html", color = "red")),
+                    DrugB = ifelse(DrugB>DrugA & Val < 4 | DrugB<DrugA & Val > 3,
+                                  cell_spec(DrugB, "html", color = "red"),
+                                  cell_spec(DrugB, "html", color = "green"))
+                      ) %>% 
+                select(Distribution, DrugA, DrugB) %>% 
+                kable("html", escape = FALSE) %>% 
+                kable_styling(bootstrap_options = c("striped", "hover")) %>% 
+                pack_rows("Expected Loss", 1, 3) %>% 
+                pack_rows("Proportion Cost Effective", 4,6)
+
+# ------------------------- #
+# NOTE: If you are reding this code, this function above didn't quite work (the ifelse statements would not output the exact colors I needed. So, I printed the html from the table above in my console, then edited it myself, then put it back into Rmd raw. Very hacky but it worked. )
+# ------------------------- #
+```
+
+
+
+
+<!--html_preserve-->
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:left;"> Distribution </th>
+   <th style="text-align:left;"> DrugA </th>
+   <th style="text-align:left;"> DrugB </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr grouplength="3"><td colspan="3" style="border-bottom: 1px solid;"><strong>Expected Loss</strong></td></tr>
+<tr>
+   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Left Skewed Data </td>
+   <td style="text-align:left;"> <span style="     color: red !important;">$376.01</span> </td>
+   <td style="text-align:left;"> <span style="     color: green !important;">$284.55</span> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Normally Distributed Data </td>
+   <td style="text-align:left;"> <span style="     color: red !important;">$1,032.44</span> </td>
+   <td style="text-align:left;"> <span style="     color: green !important;">$20.70</span> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Right Skewed Data </td>
+   <td style="text-align:left;"> <span style="     color: red !important;">$361.19</span> </td>
+   <td style="text-align:left;"> <span style="     color: green !important;">$271.40</span> </td>
+  </tr>
+  <tr grouplength="3"><td colspan="3" style="border-bottom: 1px solid;"><strong>Proportion Cost Effective</strong></td></tr>
+<tr>
+   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Left Skewed Data </td>
+   <td style="text-align:left;"> <span style="     color: red !important;">0.3834</span> </td>
+   <td style="text-align:left;"> <span style="     color: green !important;">0.6166</span> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Normally Distributed Data </td>
+   <td style="text-align:left;"> <span style="     color: red !important;">0.0827</span> </td>
+   <td style="text-align:left;"> <span style="     color: green !important;">0.9173</span> </td>
+  </tr>
+  <tr>
+   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Right Skewed Data </td>
+   <td style="text-align:left;"> <span style="     color: green !important;">0.5373</span> </td>
+   <td style="text-align:left;"> <span style="     color: red !important;">0.4627</span> </td>
+  </tr>
+</tbody>
+</table>
+<!--/html_preserve-->
+
+
+<br>
+
+Notice that when we consider the expected loss, Drug B is optimal (green) for all three scenarios; however, if we only consider the proportion of times a drug is cost effective, it appears that in the right skewed data, Drug A is the best choice!
+<br>
+
+<span style="color:indianred">**That is why these two should be compared together!**</span>
+<br>
+<br>
+
+## See for yourself!
+
+Here you can adjust the distribution of INBs youreslf to observe the special distributions which lead to an incomplete CEAC.
+<br>
+<br>
+
+**When the mean and median have opposite signs, the distribution below will light up <span style="color:red">red</span> and the EL and the CEAC will tell a different story! (recall that a lower expected loss is optimal)**
+<br>
+<br>
+
+Try moving the skew to "7". Notice how the mean of the INB favors "Strategy B" while the median favors "Strategy A"? Observe, in this case, that B has the lower expected loss but is less likely to be cost effective.  
+<br>
+<br>
+
+```{r}
+knitr::include_app("https://brennanbeal.shinyapps.io/ExpectedLoss_Shiny/",
+                   height = "1000px")
+```
+
+<br>
+<br>
+
+## Divide and Conquer!
+My goal of this post was for the reader to understand what the expected loss curve is, and how it can add value to the CEAC. You can now see why the CEAC should only stand alone when a decision maker is risk-neutral (that is, when a decision maker is indifferent to the potential magnitude of loss when they're wrong). For other cases, it is imperitive that an ELC accompany.
+<br>
+
+So now that you (hopefully) have a solid understanding of *what* the expected loss curve is, and what it represents, building one should take no time at all!
+<br>
+<br>
+
+
+## Thanks
+I want to give one last shout out to the DARTH group!
+<br>
+
+  * Their paper on expected losses (which I highly recommend reading) can be found [here](https://www.valueinhealthjournal.com/article/S1098-3015(19)30133-0/abstract)
+  * Their website can be found here [here](http://darthworkgroup.com/)
+  
+  
