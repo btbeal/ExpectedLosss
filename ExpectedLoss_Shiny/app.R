@@ -39,7 +39,12 @@ shinyApp(
   server <- function(input, output){
     
     v <- reactive({
-      df <- as.data.frame(rsnorm(10000, mean = input$mean, sd = input$sd, xi = input$skew))      # Data for plot
+      if(input$skew != 0){
+        df <- as.data.frame(rsnorm(10000, mean = input$mean, sd = input$sd, xi = input$skew))      # Data for plot
+      } else {
+        df <- as.data.frame(rnorm(10000, mean = input$mean, sd = input$sd))      # Data for plot
+      }
+     
       names(df) <- "INB"
       
       df
@@ -93,7 +98,8 @@ shinyApp(
         scale_x_continuous(labels = dollar_format()) +
         labs(
           title = "Incremental Net Benefit Distribution"
-        )
+        ) +
+        xlim(c(-3000,3000))
       
       
     })

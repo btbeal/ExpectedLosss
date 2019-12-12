@@ -5,8 +5,8 @@ account: brennanbeal
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1572813
-bundleId: 2647959
+bundleId: 2662715
 url: https://brennanbeal.shinyapps.io/ExpectedLoss_Shiny/
-when: 1575682420.29259
+when: 1576176582.1888
 asMultiple: FALSE
 asStatic: FALSE

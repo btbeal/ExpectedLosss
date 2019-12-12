@@ -70,33 +70,47 @@ for(i in 1:ncol(drug_B_nmb)){
 In the Fall of 2019, while studying at The University of Washington’s CHOICE institute, I had the privilege of attending my first decision modeling workshop led by DARTH (Decision Analysis in R for Technologies in Health). Quick plug: if you ever have the chance to attend one of their [workshops](http://darthworkgroup.com/workshops/), I would *highly* recommend it. They’re a group of researchers who have banded together to form a collaborative group dedicated to open-source, transparent solutions to decision analysis in health.  
 <br>
 
-On the third day of the workshop, they presented an idea known as the “expected loss” curve (ELC) as an addition to the Cost Effectiveness Acceptability Curve (CEAC). After reading their paper on the topic (see [here](https://www.valueinhealthjournal.com/article/S1098-3015(19)30133-0/abstract)), I was really struggling to understand why this wasn’t recommended by all the major CEA guidelines? In fact, almost all of them recommend a CEAC but that only tells some of the story. So why not both?  
+On the third day of the workshop, they presented an idea known as the “expected loss” curve (ELC) as an addition to the cost-effectiveness acceptability curve (CEAC) and the cost-effectiveness acceptability frontier (CEAF). After reading their paper on the topic (see [here](https://www.valueinhealthjournal.com/article/S1098-3015(19)30133-0/abstract)), I was really struggling to understand why this wasn’t recommended by all the major CEA guidelines? In fact, almost all of them recommend a CEAC/CEAF but that only tells some of the story. So why not both?  
 <br>
 
 My own conclusion is that the impetus behind the ELC is not always explicitly clear and, because I am a visual person, I thought visuals may help. I'm first going to start with some simple definitions, then provide a working example of the math, and finally wrap up with an interactive section to let you play around with the different cases and demonstrate with interactive visuals why the <span style="color:indianred">**_ELC is necessary to be a fully informed decision maker._**</span>     
 <br>
 
 ## So, what is an Expected Loss Curve?
-### A simplistic example
-Let us suppose that you want to compare two strategies (Strategy A and Strategy B) to see which will be optimal for your company. Your head statistician informs you that Strategy A will be cost-effective 70% of the time and in the 70 times out of 100 that it is cost-effective, you stand to gain \$5 dollars each time or "you lose \$0". She then proceeds to tell you that for every time you are wrong (30% of the time, here) you stand to lose \$100. Your expected loss here would be \$30 (30% x \$100 = \$30). With that in mind, you also calculate the expected loss for Strategy B. Turns out it is only \$7! (\$7 here is arbitrary for the sake of example).
-<br>
-
-So here we have a strategy where _only_ knowing what is most likely to be cost-effective would mislead a decision maker to the incorrect decision (the one with a greater expected loss) and subject their company to unnecessary risks.
-<br>
-
-### Expected Loss vs. Cost-Effectiveness Acceptability
+### ELC vs. CEAC/CEAF
 <span style="color:indianred">**Cost-Effectiveness Acceptability Curves**</span> represent the proportion of samples, derived from a probabilistic sensitivity analysis (PSA), that have the *highest* net monetary benefit (NMB).
 <br>
 
-<span style="color:indianred">**Expected Loss Curves**</span> represent the average financial loss when a sample from the same PSA does *not* have the highest net monetary benefit.
+<span style="color:indianred">**Cost-Effectiveness Acceptability Frontiers**</span> indicate which strategy *on the CEAC* is optimal, or has the lowest net monetary benefit (NMB).
 <br>
 
 These two will work in tandem to tell the decision maker:
 <br> 
 
   + What strategy is *most likely* to be cost-effective (Cost-Effectiveness Acceptability);
-  + and what the expected financial loss (or risk) is if the chosen strategy turns out *not* to be cost-effective (Expected Loss)
+  + and what strategy at a given WTP is *optimal* regarding NMB. 
+  
+But neither of these pieces of information explicitly describe to decision makers how much they may stand to lose from a given choice. Further, it is often confusing to readers why a choice may be labeled "optimal" when it is clearly less likely to be cost-effective.
 <br>
+
+<span style="color:indianred">**Expected Loss Curves**</span> represent the expected financial loss at a given WTP when a sample from the same PSA does not have the highest net monetary benefit. This curve takes into account the likelihood of being cost-effective and the economic cost when a strategy is sub-optimal.
+<br>
+
+The ELC informs decision makers *explicitly* about the risks they are incurring when choosing a particular strategy. A graphical representation of the ELC describes the frontier mentioned above in economic terms rather than binary terms ("optimal" or "sub-optimal") presented by the CEAF.  
+<br>
+
+### A simplistic example
+Let us suppose that you want to compare two strategies (Strategy A and Strategy B) to see which will be optimal for your company. Your head statistician informs you that Strategy A will be cost-effective 70% of the time and in the 70 times out of 100 that it is cost-effective, you stand to gain \$5 dollars each time (you lose \$0 each time). She then proceeds to tell you that for every time you are wrong (30% of the time) you stand to lose \$100. Your expected loss would be \$30 (30% x \$100 = \$30). With that in mind, you also calculate the expected loss for Strategy B. Turns out it is only \$7! (\$7 is arbitrary for the sake of example).
+<br>
+
+In this example, Strategy B would be favored on the CEAF but the CEAC would have shown it to be less likely. Having the CEAF at least informs us what strategy is optimal, but we are still left with a relatively confusing picture of cost-effectiveness. 
+<br>
+
+Instead, the statistitician could present the expected loss of each strategy, which would demonstrate the optimal strategy at this particular WTP *and* what you stand to lose economically, relative to the other strategies. 
+<br>
+
+The ELC provides a much clearer picture of optimal strategies and the risks associated.
+
 
 ### Math
 The core of every PSA analysis is derived from the NMB of each strategy for a given iteration of the PSA:
@@ -165,7 +179,7 @@ Applying this to our mock NMB matrix, we get:
 
 <br>
 <br>
-Aand then our expected loss for Drug A or Drug B is just the average of all of those losses...  
+And then our expected loss for Drug A or Drug B is just the average of all of those losses...  
 <br>
 <br>
 
@@ -206,9 +220,12 @@ Now that we know what the expected loss is, it seems reasonable to assume that t
 Allow me to explain…  
 <br>
 
-Consider the following potential distributions of your incremental net benefit (the difference between Drug B and Drug A at each iteration), or INB.  
+Consider the following possible distributions of your incremental net benefit (INB), where the INB is just the difference between the net monetary benefit of Drug B ($NMB_{d_B,i}$) and Drug A ($NMB_{d_A,i}$) at each iteration (to continue with the strategies considered above):
+
+$$INB = NMB_{d_B,i} - NMB_{d_A,i}$$
 <br>
 <br>
+
 ```{r, fig.align= "center"}
 
 s <- all_skew %>% 
@@ -218,17 +235,17 @@ ggplot(s) +
   geom_density(aes(x = INB, fill = Skew), alpha = 2/3) +
   theme_hc() +
   labs(title = "Distribution of Incremental Net Monetary Benefit",
-       subtitle = "for three hypothetical INB distributions") +
+       subtitle = "for three hypothetical INB distributions of Drug B vs. Drug A") +
   scale_x_continuous(labels = dollar_format())
   
 ```
 <br>
 <br> 
   
-All three hypothetical distributions represent scenarios where the given strategy is not 100% likely to be cost effective (we know this because we can see some of each distribution being < $0, which means that at least one sample of the PSA favors the other strategy). Of course, these distributions could be located anywhere on the x-axis but most often you’ll have something that looks like those pictured above (each strategy has some probability of being cost-effective).  
+All three hypothetical distributions represent scenarios where Drug B is not 100% likely to be cost-effective (we know this because we can see some of each distribution being < $0, which means that at least one sample of the PSA favors the other Drug A). Of course, these distributions could be located anywhere on the x-axis but most often you’ll have something that looks like those pictured above (each strategy has some probability of being cost-effective).  
 <br>
 <br>
-We know that the mean will represent the optimal strategy per our definitions above. We also know that the median of the data above will represent the most probable to be cost effective. So, in the special cases where the mean and median are on opposite sides of the $0 line, we will have a strategy that is most likely to be cost effective for one strategy but have the highest INB for another!  
+We know that the mean will represent the *optimal* strategy per our definitions above. We also know that the median of the data above will represent the *most probable* to be cost-effective. So, in the special cases where the mean and median are on opposite sides of the $0 line, we will have a strategy that is most likely to be cost effective for one strategy but have the highest INB for another!  
 <br>
 <br>
 It is in this special case, the CEAC alone will give us misleading results and lead a decision maker to make a suboptimal decision. *That* is why it matters and *that* is why one should provide both to gather the most comprehensive information available.  
@@ -335,7 +352,7 @@ html_table <- f %>%
 
 <br>
 
-Notice that when we consider the expected loss, Drug B is optimal (green) for all three scenarios; however, if we only consider the proportion of times a drug is cost effective, it appears that in the right skewed data, Drug A is the best choice!
+Notice that when we consider the expected loss, Drug B is optimal (green) for all three scenarios; however, if we only consider the proportion of times a drug is cost-effective, it appears that in the right skewed data, Drug A is the best choice!
 <br>
 
 <span style="color:indianred">**That is why these two should be compared together!**</span>
@@ -379,5 +396,4 @@ I want to give one last shout out to the DARTH group!
 
   * Their paper on expected losses (which I highly recommend reading) can be found [here](https://www.valueinhealthjournal.com/article/S1098-3015(19)30133-0/abstract)
   * Their website can be found here [here](http://darthworkgroup.com/)
-  
   
