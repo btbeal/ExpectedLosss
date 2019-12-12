@@ -81,7 +81,7 @@ My own conclusion is that the impetus behind the ELC is not always explicitly cl
 <span style="color:indianred">**Cost-Effectiveness Acceptability Curves**</span> represent the proportion of samples, derived from a probabilistic sensitivity analysis (PSA), that have the *highest* net monetary benefit (NMB).
 <br>
 
-<span style="color:indianred">**Cost-Effectiveness Acceptability Frontiers**</span> indicate which strategy *on the CEAC* is optimal, or has the lowest net monetary benefit (NMB).
+<span style="color:indianred">**Cost-Effectiveness Acceptability Frontiers**</span> indicate which strategy *on the CEAC* is optimal, or has the greatest net monetary benefit (NMB).
 <br>
 
 These two will work in tandem to tell the decision maker:
