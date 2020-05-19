@@ -32,7 +32,11 @@ library(scales)
 library(DT)
 library(plotly)
 
-
+library(ggplot2) 
+theme_set(theme_minimal(base_size=12))
+theme_update(panel.background = element_rect(fill = "transparent", colour = NA),
+             plot.background = element_rect(fill = "transparent", colour = NA))
+opts_chunk$set(dev.args=list(bg="transparent"))
 
 # ----------------------------------------------------------------------- #
 #   Create Artificial Distributions
@@ -305,48 +309,62 @@ html_table <- f %>%
 
 <!--html_preserve-->
 <table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
- <thead>
+  <thead>
   <tr>
-   <th style="text-align:left;"> Distribution </th>
-   <th style="text-align:left;"> DrugA </th>
-   <th style="text-align:left;"> DrugB </th>
+  <th style="text-align:left;"> Distribution </th>
+  <th style="text-align:left;"> DrugA </th>
+  <th style="text-align:left;"> DrugB </th>
+  <th style="text-align:right;"> Mean </th>
+  <th style="text-align:right;"> Median </th>
   </tr>
- </thead>
-<tbody>
-  <tr grouplength="3"><td colspan="3" style="border-bottom: 1px solid;"><strong>Expected Loss</strong></td></tr>
-<tr>
-   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Left Skewed Data </td>
-   <td style="text-align:left;"> <span style="     color: red !important;">$376.01</span> </td>
-   <td style="text-align:left;"> <span style="     color: green !important;">$284.55</span> </td>
-  </tr>
+  </thead>
+  <tbody>
+  <tr grouplength="3"><td colspan="5" style="border-bottom: 1px solid;"><strong>Expected Loss</strong></td></tr>
   <tr>
-   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Normally Distributed Data </td>
-   <td style="text-align:left;"> <span style="     color: red !important;">$1,032.44</span> </td>
-   <td style="text-align:left;"> <span style="     color: green !important;">$20.70</span> </td>
-  </tr>
-  <tr>
-   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Right Skewed Data </td>
-   <td style="text-align:left;"> <span style="     color: red !important;">$361.19</span> </td>
-   <td style="text-align:left;"> <span style="     color: green !important;">$271.40</span> </td>
-  </tr>
-  <tr grouplength="3"><td colspan="3" style="border-bottom: 1px solid;"><strong>Proportion Cost Effective</strong></td></tr>
-<tr>
-   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Left Skewed Data </td>
-   <td style="text-align:left;"> <span style="     color: red !important;">0.3834</span> </td>
-   <td style="text-align:left;"> <span style="     color: green !important;">0.6166</span> </td>
+  <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Left Skewed Data </td>
+  <td style="text-align:left;"> <span style="     color: red !important;">$376.01</span> </td>
+  <td style="text-align:left;"> <span style="     color: green !important;">$284.55</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$91.45</span></td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$255.85</span></td>
   </tr>
   <tr>
-   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Normally Distributed Data </td>
-   <td style="text-align:left;"> <span style="     color: red !important;">0.0827</span> </td>
-   <td style="text-align:left;"> <span style="     color: green !important;">0.9173</span> </td>
+  <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Normally Distributed Data </td>
+  <td style="text-align:left;"> <span style="     color: red !important;">$1,032.44</span> </td>
+  <td style="text-align:left;"> <span style="     color: green !important;">$20.70</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$,1011.74</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">913.04061</span> </td>
   </tr>
   <tr>
-   <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Right Skewed Data </td>
-   <td style="text-align:left;"> <span style="     color: green !important;">0.5373</span> </td>
-   <td style="text-align:left;"> <span style="     color: red !important;">0.4627</span> </td>
+  <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Right Skewed Data </td>
+  <td style="text-align:left;"> <span style="     color: red !important;">$361.19</span> </td>
+  <td style="text-align:left;"> <span style="     color: green !important;">$271.40</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$89.79</span> </td>
+  <td style="text-align:right;"> <span style="     color: red !important;">-$75.47</span> </td>
   </tr>
-</tbody>
-</table>
+  <tr grouplength="3"><td colspan="5" style="border-bottom: 1px solid;"><strong>Proportion Cost Effective</strong></td></tr>
+  <tr>
+  <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Left Skewed Data </td>
+  <td style="text-align:left;"> <span style="     color: red !important;">0.3834</span> </td>
+  <td style="text-align:left;"> <span style="     color: green !important;">0.6166</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$91.45</span></td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$255.85</span></td>
+  </tr>
+  <tr>
+  <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Normally Distributed Data </td>
+  <td style="text-align:left;"> <span style="     color: red !important;">0.0827</span> </td>
+  <td style="text-align:left;"> <span style="     color: green !important;">0.9173</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$,1011.74</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">913.04061</span> </td>
+  </tr>
+  <tr>
+  <td style="text-align:left; padding-left: 2em;" indentlevel="1"> Right Skewed Data </td>
+  <td style="text-align:left;"> <span style="     color: green !important;">0.5373</span> </td>
+  <td style="text-align:left;"> <span style="     color: red !important;">0.4627</span> </td>
+  <td style="text-align:right;"> <span style="     color: green !important;">$89.79</span> </td>
+  <td style="text-align:right;"> <span style="     color: red !important;">-$75.47</span> </td>
+  </tr>
+  </tbody>
+  </table>
 <!--/html_preserve-->
 
 
